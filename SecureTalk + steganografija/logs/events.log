@@ -1,0 +1,5 @@
+{"time": "2025-10-12T14:06:10+0200", "event": "embed", "image_in": "C:/Users/Ziza/Desktop/Steganografija/output/stego_enc.png", "image_out": "users\\ana\\stego_stego_enc.png", "bytes_embedded": 220}
+{"time": "2025-10-12T14:15:59+0200", "event": "embed", "image_in": "C:/Users/Ziza/Pictures/wallhaven-exj7kl.png", "image_out": "users\\ana\\stego_wallhaven-exj7kl.png", "bytes_embedded": 220}
+{"time": "2025-10-12T14:22:32+0200", "event": "embed", "image_in": "C:/Users/Ziza/Desktop/Steganografija/output/stego_enc.png", "image_out": "users\\ana\\stego_stego_enc.png", "bytes_embedded": 220}
+{"time": "2025-10-12T14:31:28+0200", "event": "embed", "image_in": "C:/Users/Ziza/Desktop/Steganografija/output/stego_enc.png", "image_out": "users\\milan\\stego_stego_enc.png", "bytes_embedded": 222}
+{"time": "2025-10-12T14:31:40+0200", "event": "extract", "image": "users\\ana\\received\\recv_stego_stego_enc.png", "bytes_extracted": 22, "metadata": {"sender_id": "milan", "stego_algorithm": "LSB", "crypto": "AES-GCM", "original_filename": "msg.txt", "salt": "tmsyFFTZD2ck/isSA5cBuw==", "iv": "ryDKQ+WoVlUe0ZfH", "payload_size": 22}}

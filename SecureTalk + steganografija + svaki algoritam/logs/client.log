@@ -1,0 +1,32 @@
+2025-11-01 11:30:16 [milan] Connecting to ws://127.0.0.1:8765/ws ...
+2025-11-01 11:30:16 [milan] • Povezano
+2025-11-01 11:30:16 [milan] REGISTERING with server ...
+2025-11-01 11:30:16 [milan] • Povezano (user_id=5966ed7a-8999-400e-8418-8f59edf5c1af)
+2025-11-01 11:30:16 [milan] REGISTER OK (user_id=5966ed7a-8999-400e-8418-8f59edf5c1af)
+2025-11-01 11:30:16 [milan] Sent join_room 'lobby'
+2025-11-01 11:30:16 [milan] • Ušao si u sobu 'lobby'. Članova: 1
+2025-11-01 11:30:16 [milan] Room joined: milan
+2025-11-01 11:30:26 [ana] Connecting to ws://127.0.0.1:8765/ws ...
+2025-11-01 11:30:26 [ana] • Povezano
+2025-11-01 11:30:26 [ana] REGISTERING with server ...
+2025-11-01 11:30:26 [ana] • Povezano (user_id=cf9bdce2-c4bb-4066-aed2-ed20dafa3da1)
+2025-11-01 11:30:26 [ana] REGISTER OK (user_id=cf9bdce2-c4bb-4066-aed2-ed20dafa3da1)
+2025-11-01 11:30:26 [ana] Sent join_room 'lobby'
+2025-11-01 11:30:26 [milan] ✅ ana se priključio.
+2025-11-01 11:30:26 [ana] • Ušao si u sobu 'lobby'. Članova: 2
+2025-11-01 11:30:26 [ana] Room joined: ana, milan
+2025-11-01 11:30:45 [milan] [LOOP ERROR] Event loop stopped before Future completed.
+2025-11-01 11:30:45 [ana] ❌ milan je napustio sobu.
+2025-11-01 11:32:54 [ana] Connecting to ws://127.0.0.1:8765/ws ...
+2025-11-01 11:32:54 [ana] • Povezano
+2025-11-01 11:32:54 [ana] REGISTERING with server ...
+2025-11-01 11:32:54 [ana] • Povezano (user_id=e5510cdd-7dff-4a5b-9c8a-2288b512a246)
+2025-11-01 11:32:54 [ana] REGISTER OK (user_id=e5510cdd-7dff-4a5b-9c8a-2288b512a246)
+2025-11-01 11:33:00 [milan] Connecting to ws://127.0.0.1:8765/ws ...
+2025-11-01 11:33:00 [milan] • Povezano
+2025-11-01 11:33:00 [milan] REGISTERING with server ...
+2025-11-01 11:33:00 [milan] • Povezano (user_id=c184a4b1-bbe0-4d8a-b89f-73507c6e73f9)
+2025-11-01 11:33:00 [milan] REGISTER OK (user_id=c184a4b1-bbe0-4d8a-b89f-73507c6e73f9)
+2025-11-01 11:33:12 [ana] Room members (lobby): 
+2025-11-01 11:33:27 [milan] [LOOP ERROR] Event loop stopped before Future completed.
+2025-11-01 11:33:30 [ana] [LOOP ERROR] Event loop stopped before Future completed.

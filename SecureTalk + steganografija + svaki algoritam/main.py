@@ -14,7 +14,7 @@ def cmd_embed(args):
         salt, iv, ct = encrypt_payload_aes_gcm(payload, args.password)
         metadata = {
             'sender_id': args.sender or 'cli',
-            'stego_algorithm': 'LSB',
+            'stego_algorithm': args.algorithm.upper(),
             'crypto': 'AES-GCM',
             'salt': base64.b64encode(salt).decode('utf-8'),
             'iv': base64.b64encode(iv).decode('utf-8'),
@@ -22,9 +22,9 @@ def cmd_embed(args):
             'payload_size': len(ct)
         }
         package = build_package(metadata, ct)
-        embed_bytes_into_image(args.image, args.out, package, algorithm='LSB')
+        embed_bytes_into_image(args.image, args.out, package, algorithm=args.algorithm.upper())
     else:
-        embed_file(args.image, args.infile, args.out, algorithm='LSB')
+        embed_file(args.image, args.infile, args.out, algorithm=args.algorithm.upper())
     print("[OK] Embed complete")
 
 def cmd_extract(args):
@@ -42,12 +42,13 @@ def main():
     p.add_argument('--out', required=True)
     p.add_argument('--password', required=False)
     p.add_argument('--sender', required=False)
+    p.add_argument('--algorithm', default='LSB', choices=['LSB', 'DCT', 'PVD', 'LSB2', 'DWT'], help='Stego algorithm (LSB/DCT/PVD/LSB2/DWT)')
     p.set_defaults(func=cmd_embed)
 
     p2 = sub.add_parser('extract')
     p2.add_argument('--image', required=True)
     p2.add_argument('--out', required=True)
-    p2.add_argument('--algorithm', required=False, help='Optional algorithm hint (LSB/DCT/PVD)')
+    p2.add_argument('--algorithm', required=False, choices=['LSB', 'DCT', 'PVD', 'LSB2', 'DWT'], help='Optional algorithm hint (LSB/DCT/PVD/LSB2/DWT)')
     p2.add_argument('--password', required=False)
     p2.set_defaults(func=cmd_extract)
 

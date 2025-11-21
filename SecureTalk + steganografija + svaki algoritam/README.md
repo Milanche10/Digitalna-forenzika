@@ -1,10 +1,11 @@
+```markdown
 # SecureTalk — steganografija + end-to-end šifrovanje
 
 **Opis (kratko)**
 SecureTalk je edukativni/studentski projekat za bezbednu razmenu tekstualnih poruka i fajlova preko WebSocket servera. Kombinuje:
 
 * End-to-end enkripciju transporta poruka i chunkova fajlova (NaCl `Box`),
-* Podršku za više steganografskih algoritama (npr. `LSB`, `PVD`, `DCT`) za skrivanje fajlova unutar slika,
+* Podršku za više steganografskih algoritama (npr. `LSB`, `LSB2`, `PVD`, `DCT`, `DWT`) za skrivanje fajlova unutar slika,
 * Opcionu AES-GCM enkripciju za sam *payload* (sadržaj) koji je ugrađen u stego sliku,
 * Tkinter GUI klijent (chat + kontrola slanja/primanja + poseban log panel).
 
@@ -20,7 +21,9 @@ Ovaj README je spreman za skidanje i direktnu upotrebu.
 ├── main.py                  # Entrypoint (gui / cli) — pokretanje klijenta
 ├── client.py                # GUI klijent (Tkinter) — možeš copy/paste-ovati
 ├── stego.py                 # Implementacija embed/extract i API funkcije
+├── stego_debug.py           # Debug alat za proveru embedovanih podataka
 ├── crypto_utils.py          # AES-GCM util funkcije
+├── utils.py                 # Pomoćne funkcije (logovi, itd.)
 ├── requirements.txt         # Preporučene biblioteke
 ├── README.md                # Ovaj fajl
 └── users/                   # (generiše se) users/<username> + received/
@@ -35,6 +38,8 @@ Ovaj README je spreman za skidanje i direktnu upotrebu.
 * Izrada stego slika iz cover slike + input fajla (`embed_file`).
 * Prefiks od 3 slova u imenu izlazne stego slike (npr. `LSBcover.png`, `DCTphoto.jpg`) — koristi se kao hint za automatsku ekstrakciju na prijemu.
 * GUI ima dva panela: lijevo *chat* (samo stvarne poruke) i desno *log* (debug/status) — logovi ne zatrpavaju chat.
+* Dodati novi algoritmi: LSB2 (2 bita po kanalu) i DWT (Discrete Wavelet Transform za bolju robustnost).
+* Ispravke za DCT i PVD: Bolji clamping, scale, i fallback da se smanji korupcija podataka.
 
 ---
 
@@ -77,7 +82,7 @@ Ovaj README je spreman za skidanje i direktnu upotrebu.
 
 ## Konvencija imena fajlova i algoritamski hint
 
-* **Format:** `XXX<cover_filename>`, gde `XXX` = prva tri slova skraćenice algoritma, velika slova (npr. `LSB`, `PVD`, `DCT`).
+* **Format:** `XXX<cover_filename>`, gde `XXX` = prva tri slova skraćenice algoritma, velika slova (npr. `LSB`, `LSB2`, `PVD`, `DCT`, `DWT`).
 * Sender treba da poštuje ovu konvenciju kada kreira izlaznu stego sliku. Primatelj će:
 
   1. prvo pokušati `meta['algorithm']`,
@@ -93,14 +98,16 @@ Preporučeno: **Python 3.10+**
 ### Preporučeni `requirements.txt` (primer)
 
 ```
-websockets>=10.0
+Pillow>=9.0.0
+cryptography>=41.0.0
+websockets>=11.0.0
 pynacl>=1.5.0
-uvicorn
-fastapi
-pillow
-numpy
-scipy
-cryptography
+numpy>=1.24.0
+sounddevice>=0.4.6
+fastapi>=0.95.0
+uvicorn>=0.22.0
+scipy>=1.10.0
+pywt>=1.4.1  # Za DWT
 ```
 
 ### Koraci
@@ -124,7 +131,7 @@ pip install -r requirements.txt
 Ako nemaš `requirements.txt`, instaliraj ručno:
 
 ```bash
-pip install websockets pynacl pillow numpy scipy cryptography uvicorn fastapi
+pip install pillow cryptography websockets pynacl numpy sounddevice fastapi uvicorn scipy pywt
 ```
 
 ---
@@ -134,16 +141,9 @@ pip install websockets pynacl pillow numpy scipy cryptography uvicorn fastapi
 ### Server
 
 Server je WebSocket forwarder / room manager (najčešće FastAPI + websockets).
-Ako `server.py` izlaže `app` objekt (FastAPI) — koristi uvicorn:
 
 ```bash
-uvicorn server:app --host 0.0.0.0 --port 8765 --reload
-```
-
-Ili upravo:
-
-```bash
-python server.py
+python main.py server --port 8765
 ```
 
 U logu treba biti:
@@ -155,8 +155,6 @@ Uvicorn running on http://0.0.0.0:8765
 
 ### GUI klijent (preko `main.py`)
 
-U logovima si ranije koristio:
-
 ```bash
 python main.py gui --username milan
 ```
@@ -167,13 +165,6 @@ ili:
 python main.py gui --username ana
 ```
 
-Ako koristiš direktno `client.py` (ako `main.py` samo kreće GUI iz tog fajla), možeš uraditi:
-
-```bash
-python client.py
-# (ili izmeniti __main__ u client.py da prihvati args)
-```
-
 **Napomena:** GUI klijent automatski kreira folder `users/<username>/received/` i `users/<username>/` za privremene fajlove i izlazne stego slike.
 
 ---
@@ -182,7 +173,7 @@ python client.py
 
 * `SERVER_WS_TEMPLATE = "ws://{host}:{port}/ws"` — promeni host/port po potrebi.
 * `CHUNK_SIZE = 128 * 1024` — veličina chunk-a; možeš povećati smanjiti zavisno od mreže.
-* `ALGORITHMS` — lista podržanih algoritama u `stego.py`. Preporuka: `{"LSB":..., "PVD":..., "DCT":...}`
+* `ALGORITHMS` — lista podržanih algoritama u `stego.py`: `{"LSB":..., "LSB2":..., "PVD":..., "DCT":..., "DWT":...}`
 
 ---
 
@@ -201,25 +192,96 @@ Server prima potpuno šifrovane chunkove i samo ih preusmerava — server ne vid
 
 ---
 
+## Testiranje
+
+Pripremi fajlove u `./Test/` folderu: `cover.png` (velika slika, npr. sa Unsplash-a) i `secret.txt` (mali tekst fajl).
+
+### CLI testovi (embed + extract)
+
+```bash
+# LSB
+python main.py embed --image ./Test/cover.png --infile ./Test/secret.txt --out ./Test/stego_LSB.png --algorithm LSB
+python main.py extract --image ./Test/stego_LSB.png --out extracted/ --algorithm LSB
+
+# DCT
+python main.py embed --image ./Test/cover.png --infile ./Test/secret.txt --out ./Test/stego_DCT.png --algorithm DCT
+python main.py extract --image ./Test/stego_DCT.png --out extracted/ --algorithm DCT
+
+# PVD
+python main.py embed --image ./Test/cover.png --infile ./Test/secret.txt --out ./Test/stego_PVD.png --algorithm PVD
+python main.py extract --image ./Test/stego_PVD.png --out extracted/ --algorithm PVD
+
+# LSB2
+python main.py embed --image ./Test/cover.png --infile ./Test/secret.txt --out ./Test/stego_LSB2.png --algorithm LSB2
+python main.py extract --image ./Test/stego_LSB2.png --out extracted/ --algorithm LSB2
+
+# DWT
+python main.py embed --image ./Test/cover.png --infile ./Test/secret.txt --out ./Test/stego_DWT.png --algorithm DWT
+python main.py extract --image ./Test/stego_DWT.png --out extracted/ --algorithm DWT
+```
+
+### Sa lozinkom
+
+```bash
+python main.py embed --image ./Test/cover.png --infile ./Test/secret.txt --out ./Test/stego_enc.png --algorithm DCT --password tajna123
+python main.py extract --image ./Test/stego_enc.png --out extracted/ --algorithm DCT --password tajna123
+```
+
+### Autodetect
+
+```bash
+python main.py extract --image ./Test/stego_DCT.png --out extracted/
+```
+
+### Debug tool
+
+```bash
+python stego_debug.py ./Test/stego_DCT.png
+```
+
+### Server + klijenti
+
+```bash
+# Server
+python main.py server --port 8765
+
+# Klijent 1 (u novom terminalu)
+python main.py gui --username milan
+
+# Klijent 2 (u još jednom terminalu)
+python main.py gui --username ana
+```
+
+Pošalji poruke/fajlove iz GUI-a i provjeri received folder.
+
+---
+
 ## Troubleshooting — često viđeni problemi
 
-### 1) `Extraction with DCT failed: 'utf-8' codec can't decode byte ...`
+### 1) `Extraction failed: Ne postoji magic header (nije STG)`
 
-Mogući uzroci:
+* **Uzrok:** MAGIC bajtovi (`STG0`) nisu nađeni u ekstrahovanom stream-u — embed nije uspešan ili podatci korumpirani.
+* **Rešenje:** Koristi `stego_debug.py` da provjeriš MAGIC offsets. Ako nema, povećaj `scale` u DCT embed-u (u `stego.py`) na manju vrijednost (npr. 50) da bitovi budu jače embedovani.
 
-* **Payload je enkriptovan AES-GCM** → ekstrakcija vraća bajtove koji nisu UTF-8. Proveri `md_inner['crypto']`. Ako je `AES-GCM`, moraš dekriptovati pomoću salt/iv/lozinke.
-* **DCT očekuje JPEG**: Implementacije koje koriste block-DCT (8x8) uglavnom rade nad JPEG kodiranim podacima. Ako šalješ **PNG** cover slike a DCT implementacija u `stego.py` radi kao za JPEG, može doći do greške. Rešenje: koristite JPEG cover za DCT ili izmeni implementaciju tako da radi nad raster podacima pravilno.
-* **Nije ubačen stego paket DCT algoritmom** — proveri da li sender stvarno koristio `DCT` kada je embedovao (meta / filename prefix treba da to potvrdi).
+### 2) `DWT embedding failed: could not broadcast input array`
 
-### 2) File chunkovi se ne sastave / nedostaju chunkovi
+* **Uzrok:** Dimenzije slike nisu parne (za Haar wavelet).
+* **Rešenje:** Dodan padding u `stego.py` — provjeri ažurirani kod.
+
+### 3) `PVD/DCT clamping warning u logu`
+
+* **Uzrok:** Pikseli prelaze 0-255 nakon embeda.
+* **Rešenje:** Dodan fallback u PVD; za DCT smanji scale.
+
+### 4) File chunkovi se ne sastave / nedostaju chunkovi
 
 * Proveri server log (treba da vidiš `Forwarded file chunk` za svaki chunk).
 * Proveri `chunk_total` i `chunk_index` koje šalješ.
 * Proveri `max_size` parametar prilikom `websockets.connect()` u klijentu/serveru.
 
-### 3) Želim da logovi ne idu u chat (samo u konzolu / poseban panel)
+### 5) Želim da logovi ne idu u chat (samo u konzolu / poseban panel)
 
-* Po defaultu klijent koji ti je poslan stavlja debug/log poruke u **log panel** (desno) i u konzolu (`print`). Chat polje sadrži isključivo dekriptovane poruke i sistemske kratke notifikacije.
+* Po defaultu klijent koji ti je poslan stavlja debug/log poruke u **log panel** (desno) i u konzolu (`print()`). Chat polje sadrži isključivo dekriptovane poruke i sistemske kratke notifikacije.
 * Ako želiš da potpuno ukloniš log panel, izbriši UI element koji prikazuje log ili zameni `_log()` sa običnim `print()` i obriši upis u chat widget.
 
 ---
@@ -229,7 +291,7 @@ Mogući uzroci:
 * Ako implementacija DCT u `stego.py` radi sa block DCT / JPEG-like transformacijama, onda:
 
   * **Koristi JPEG kao cover** prilikom embedovanja DCT stega.
-  * Ako želiš rad sa PNG, trebа refaktorisati DCT embed/extract da radi nad pixel matricama (i obezbediti invertibilnost).
+  * Ako želiš rad sa PNG, trebа refaktorisati DCT embed/extract da radi nad raster podacima pravilno.
 * Brzo testiranje: lokalno pozovi `embed_file(...)` i odmah `extract_bytes_from_image(...)` nad istom slikom — ako radi lokalno, problem nije mreža.
 
 ---
@@ -257,43 +319,8 @@ Mogući uzroci:
 
 ---
 
-## Primeri komandi (kratko)
-
-**Pokreni server**
-
-```bash
-uvicorn server:app --host 0.0.0.0 --port 8765 --reload
-```
-
-**Pokreni dva GUI klijenta (u dve terminal sesije)**
-
-```bash
-python main.py gui --username milan
-python main.py gui --username ana
-```
-
-**Pošalji stego fajl iz GUI-a**
-
-1. `Pošalji fajl (stego)` → izaberi cover (PNG/JPEG) → izaberi fajl za skrivanje (npr. `msg.txt`) → izaberi algoritam (LSB/PVD/DCT) → izaberi recipient → fajl će biti poslat.
-
----
-
-## FAQ (kratko)
-
-**Kako klijent zna koji algoritam da upotrebi za ekstrakciju?**
-
-1. `meta['algorithm']` (šifrovana meta u `cipher_meta`) — NAJPOUZDANIJE.
-2. Ako nema, proveri **prvih 3 slova imena fajla** (pretvoreno u velika slova) i uporedi sa `ALGORITHMS`.
-3. Ako ni to ne uspe, pokušaj autodetect (ako implementirano).
-
-**DCT ne radi samo kod mene — šta da radim?**
-
-* Probaj cover u JPEG formatu.
-* Testiraj embed+extract lokalno (bez mreže) — ako ne radi lokalno, problem je u DCT implementaciji ili u formatu slike.
-
----
-
 ## Licence
 
-
+MIT Licence
 ---
+```
